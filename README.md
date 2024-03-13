@@ -6,4 +6,5 @@ The model calculates fluxes and mole fractions of H2O, CO2, and COS for several 
 This code is based on Python 3. 
 
 Authors: A.Cho, L.M.J.Kooijmans, S.M.Diever, M.Wassenaar, G.Koren, M.E.Popa, S.L.Baartman, L.Mossink, S.van Heuven, and M.C.Krol
+
 Correspondence: Ara Cho (ara.cho@wur.nl)
