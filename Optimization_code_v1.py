@@ -25,7 +25,7 @@ elif(iter_mode == 'multiple'):
     tot_num = 100 # Number of ensemble members = 100
     
 # Weights
-w_wv = 3.236; w_co2 = 37.0056 ; w_cos = 0.0304; w_bg=0.3
+w_wv = 3.236 ; w_co2 =  7.1647; w_cos = 0.03366 ; w_bg=1.0 # Feb 2025
 
 nplt = 3 # the number of plants
 ########################
@@ -55,7 +55,7 @@ cos_out_unc = np.array(leaf.cos_out_unc) # Uncertainty of outgoing mole fraction
 ndata = len(Tleaf)
 
 ######## forward model ########
-def forward_model(state, mode_mcos, Tleaf_M, flow_M, h2o_in_M, co2_in_M, cos_in_M, gbw_M, pressure_M, plant_M):
+def forward_model(state, mode_mcos, Tleaf_M, flow_M, h2o_in_M, co2_in_Mp, cos_in_Mp, gbw_M, pressure_M, plant_M):
     
     ndata = len(Tleaf_M)
     
@@ -142,6 +142,8 @@ def forward_model(state, mode_mcos, Tleaf_M, flow_M, h2o_in_M, co2_in_M, cos_in_
                                   
     gamma = 0.5*(po2m/spfy)       # CO2 compensation point [Pa]  
     Rd = Rd_val * 2.13**qt        # CO2 respiration [umol/m2/s]
+
+    co2_in_M = co2_in_Mp
     
     # Analytical solving
     zk = zkc*(1+po2m/zko)
@@ -199,12 +201,13 @@ def forward_model(state, mode_mcos, Tleaf_M, flow_M, h2o_in_M, co2_in_M, cos_in_
     elif(mode_mcos == 'S2'):
         cc_cos_pre = mcos_M*(tc-289.36)
     elif(mode_mcos == 'S3'):
-        cc_cos_pre = 59.*np.exp((mcos_M*1000.)*(tc-293.0)/(293.0*gas_R*tc))
+        cc_cos_pre = 55.0*np.exp((mcos_M*1000.)*(tc-293.0)/(293.0*gas_R*tc))
     elif(mode_mcos == 'S4'):
-        cc_cos_pre = 140.*np.exp((mcos_M*1000.)*(tc-298.0)/(298.0*gas_R*tc))
+        cc_cos_pre = 138.7*np.exp((mcos_M*1000.)*(tc-298.0)/(298.0*gas_R*tc))
         
     cc_cos =(np.where((cc_cos_pre >= 0.),cc_cos_pre,0.))
         
+    cos_in_M = cos_in_Mp * (1-(h2o_in_M/1000.))
     
     # COS mole fraction in boundary layer [pmol/mol]. 
     cb_cos = (cos_in_M*flow_M/(gb_cos*S+flow_M)+((gs_cos*gi_cos*cc_cos)/(gb_cos*(gs_cos+gi_cos))))/(-gb_cos*S/(gb_cos*S+flow_M)+1+gs_cos/gb_cos-(gs_cos**2/(gb_cos*(gs_cos+gi_cos)))) #ppt
@@ -268,8 +271,8 @@ elif(mode == 'S2'):
     state_init_others = np.array([ 30, 60., 16.2])
     state_error_others = np.array([ 15., 12., 16.2])
 else:   
-    state_init_others = np.array([ 30, 60.,78.0])
-    state_error_others = np.array([ 15., 12., 78.0])
+    state_init_others = np.array([ 30, 60.,134.3])
+    state_error_others = np.array([ 15., 12., 60.0])
 
 nothers = len(state_init_others)
 
