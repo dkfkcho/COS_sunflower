@@ -11,7 +11,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-def forward_model(Tleaf_M, flow_M, h2o_in_M, co2_in_M, cos_in_M, gbw_M, pressure_M):
+def forward_model(Tleaf_M, flow_M, h2o_in_M, co2_in_Mp, cos_in_Mp, gbw_M, pressure_M):
     
     ##### Optimized state variables ####
     gsw_M    = 0.61   # Average of stomatal conductance from experimental dataset [mol/m2/s]
@@ -85,30 +85,33 @@ def forward_model(Tleaf_M, flow_M, h2o_in_M, co2_in_M, cos_in_M, gbw_M, pressure
     spfy = spfy_val * (0.57**qt)  # Partitioning of RuBP to the Caboxylase or Oxygenase [-]
                                   
     gamma = 0.5*(po2m/spfy)       # CO2 compensation point [Pa]  
-    Rd = Rd_val * 2.13**qt        # CO2 respiration [umol/m2/s]
+    Rd = Rd_val * 2.0**qt        # CO2 respiration [umol/m2/s]
     
     # Analytical solving
     zk = zkc*(1+po2m/zko)
     p =  1e-6*pressure_M
+
+    co2_in_M = co2_in_Mp
     
-    f1 = flow_M*co2_in_M*gs_co2/(S*gb_co2+flow_M)
-    f2 = (gs_co2/gb_co2+1-(S*gb_co2)/(S*gb_co2+flow_M)) 
-    
-    a = -(p*gs_co2**2/(gb_co2*f2))+gs_co2*p
-    b = gs_co2*zk+vmaxts*p-Rd*p-f1*p/f2-(gs_co2**2)*zk/(gb_co2*f2)
-    c = -Rd*zk-f1*zk/f2-vmaxts*gamma
+    T1 = (co2_in_M*flow_M/S)/(gb_co2+flow_M/S)
+    T2 = 1+gs_co2/gb_co2-wvflux/(2*gb_co2)-gb_co2/(gb_co2+flow_M/S)
+
+    a = (gs_co2**2)*p/(gb_co2*T2) + gs_co2*p*wvflux/(2*gb_co2*T2) - gs_co2*p - p*wvflux*gs_co2/(2*gb_co2) - p*(wvflux**2)/(4*gb_co2*T2) - wvflux*p/2
+    b = gs_co2*p*T1/T2 + (gs_co2**2)*zk/(gb_co2*T2) + gs_co2*zk*wvflux/(2*gb_co2*T2) - gs_co2*zk - wvflux*p*T1/(2*T2) - (wvflux*gs_co2*zk)/(2*gb_co2*T2) - (wvflux**2)*zk/(4*gb_co2*T2) - vmaxts*p - wvflux*zk/2 + Rd*p
+    c = gs_co2*zk*T1/T2 - wvflux*zk*T1/(2*T2) + vmaxts*gamma + Rd*zk
     
     # CO2 mole fraction in internal cells [umol/mol]. 
-    cs_co2 = ((-b+np.sqrt(b**2-(4*a*c)))/(2*a))
+    cs_co2 = (-b-np.sqrt(b**2-4*a*c))/(2*a)
     
     # CO2 mole fraction in boundary layer [umol/mol]. 
-    cb_co2 = cs_co2+ (vmaxts*(p*cs_co2-gamma)/(gs_co2*(cs_co2*p+zk)))-Rd/gs_co2
+    cb_co2 = (T1+cs_co2*gs_co2/gb_co2 + cs_co2*wvflux/(2*gb_co2))/T2
     
     # CO2 mole fraction in atmosphere [umol/mol]. 
-    ca_co2 = cb_co2 + gs_co2*cb_co2/gb_co2 - gs_co2*cs_co2/gb_co2
+    ca_co2 = (gb_co2*cb_co2+flow_M*co2_in_M/S)/(gb_co2+flow_M/S)    
+    ca_co2_dry = ca_co2/(1-(h2o_out_M/1000.)) 
     
     # CO2 flux [mol/m2/s]
-    flux_co2 = flow_M*(co2_in_M-ca_co2)/S
+    flux_co2 = flow_M*(co2_in_Mp-ca_co2_dry)/S
     
     # Partial pressure of internal CO2 [Pa]
     pcs_co2 = cs_co2*p 
@@ -139,18 +142,25 @@ def forward_model(Tleaf_M, flow_M, h2o_in_M, co2_in_M, cos_in_M, gbw_M, pressure
     # Compensation point for COS [pmol/mol]
     cc_cos_pre = mcos_M*(tc-289.36)
     cc_cos =(np.where((cc_cos_pre >= 0.),cc_cos_pre,0.))
+
+    cos_in_M = cos_in_Mp * (1-(h2o_in_M/1000.))
+    
+    T = gs_cos+gi_cos+wvflux/2.
+    T2 = gb_cos+flow_M/S
     
     # COS mole fraction in boundary layer [pmol/mol]. 
-    cb_cos = (cos_in_M*flow_M/(gb_cos*S+flow_M)+((gs_cos*gi_cos*cc_cos)/(gb_cos*(gs_cos+gi_cos))))/(-gb_cos*S/(gb_cos*S+flow_M)+1+gs_cos/gb_cos-(gs_cos**2/(gb_cos*(gs_cos+gi_cos)))) #ppt
+    cb_cos = ((gb_cos*flow_M*cos_in_M/S)/T2 + gs_cos*gi_cos*cc_cos/T + wvflux*gi_cos*cc_cos/(2*T))/(-(gb_cos**2)/T2 + gb_cos + gs_cos - (gs_cos**2)/T + gs_cos*wvflux/(2*T)-wvflux/2-wvflux*gs_cos/(2*T)+(wvflux**2)/(4*T) )
     
     # COS mole fraction in internal cells [pmol/mol]. 
-    cs_cos= (gs_cos*cb_cos+gi_cos*cc_cos)/(gs_cos+gi_cos)
+    ca_cos = (gb_cos*cb_cos+flow_M*cos_in_M/S)/T2
     
     # COS mole fraction in atmosphere [pmol/mol]. 
-    ca_cos= cb_cos+gs_cos*cb_cos/gb_cos-gs_cos*cs_cos/gb_cos
+    cs_cos = (gs_cos*cb_cos - (cb_cos*wvflux/2) + gi_cos*cc_cos)/(gs_cos+gi_cos+wvflux/2)
 
     # COS flux [mol/m2/s]
-    flux_cos = flow_M*(cos_in_M-ca_cos)/S
+    ca_cos_dry = ca_cos/(1-(h2o_out_M/1000.)) 
+    
+    flux_cos = flow_M*(cos_in_Mp-ca_cos_dry)/S
 
     ##### Output data ####
     # wvflux                         = water vapor flux [mol/m2/s]
