@@ -7,4 +7,9 @@ This code is based on Python 3.
 
 Authors: A.Cho, L.M.J.Kooijmans, S.M.Diever, M.Wassenaar, G.Koren, M.E.Popa, S.L.Baartman, L.Mossink, S.van Heuven, and M.C.Krol
 
+This repository includes both code and data under separate licenses:
+
+- **Code** : Licensed under the MIT License. See [LICENSE-code](./LICENSE-code).
+- **Data** : Licensed under the CC-BY 4.0 License. See [LICENSE-data](./LICENSE-data).
+- 
 Correspondence: Ara Cho (ara.cho@wur.nl)
